@@ -1,0 +1,8 @@
+node_modules
+dist
+keycloak_db
+.git
+.gitignore
+Dockerfile
+docker-compose.yml
+*.md

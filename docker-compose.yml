@@ -1,0 +1,66 @@
+x-logging: &logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:15.7-alpine
+    container_name: keycloak_db
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - 5432:5432
+    volumes:
+      - ./keycloak_db:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h localhost -p 5432"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+
+  keycloak:
+    build: .
+    container_name: keycloak
+    command: ["-v", "start-dev", "--import-realm", "--spi-required-action-VERIFY_EMAIL_CODE-code-length=5"]
+    env_file:
+      - .env
+    environment:
+      KC_HEALTH_ENABLED: true
+      KC_METRICS_ENABLED: true
+      KC_DB: postgres
+      KC_DB_URL: "jdbc:postgresql://postgres:5432/${POSTGRES_DB}"
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME}
+      KC_LOG_LEVEL: ${KEYCLOAK_LOG_LEVEL}
+      #KC_REALM_NAME: ${KEYCLOAK_REALM}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_PASSWORD}
+      # GF_URL: ${GF_HOSTNAME}:${GF_SERVER_HTTP_PORT}
+      # GF_ADMIN_USERNAME: ${GF_ADMIN_USERNAME}
+      # GF_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD}
+    ports:
+      - ${KEYCLOAK_PORT}:8080
+    #volumes:
+      #- ./themes:/opt/keycloak/themes:ro
+      # - ./dist_keycloak/target/keycloakify-starter-keycloak-theme-6.1.10.jar:/opt/keycloak/providers/keycloakify-starter-keycloak-theme-6.1.10.jar
+      # - ./dist_keycloak/src/main/resources/theme/account-v1:/opt/keycloak/themes/account-v1:rw
+      # - ./dist_keycloak/src/main/resources/theme/keycloakify-starter:/opt/keycloak/themes/keycloakify-starter:rw
+      # - ./dist_keycloak/src/main/resources/theme/keycloakify-starter_retrocompat:/opt/keycloak/themes/keycloakify-starter_retrocompat:rw
+      # - ./realm.config.json:/opt/keycloak/data/import/realm.json:ro
+      # - ./extensions/keycloak-verify-email-by-code-24.0.0.jar:/opt/keycloak/providers/keycloak-verify-email-by-code.jar:ro
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    logging: *logging
+
+volumes:
+  keycloak-db:
